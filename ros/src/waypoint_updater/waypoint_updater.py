@@ -5,6 +5,7 @@ from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
 
 import math
+import tf
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
@@ -39,27 +40,37 @@ class WaypointUpdater(object):
         self._base_waypoints = None
         self._current_pose = None
         self._last_waypoint = None
-        rospy.spin()
+        self.loop()
 
-    def pose_cb(self, msg):
-        self._current_pose = msg
+    def loop(self):
+        rate = rospy.Rate(5) # 5 Hz
+        while not rospy.is_shutdown():
+            if self._base_waypoints is not None and self._current_pose is not None:
+                # publish only after we are initialized
+                self.publish_waypoints()
+            rate.sleep()
+
+    def publish_waypoints(self):
         # we now need to find the waypoint closest and in-front of this waypoint and add
         # waypoint after that to future waypoints, which in turn is published
         future_waypoints = []
         min_wp = None
+        num_base_waypoints = len(self._base_waypoints)
         if self._last_waypoint is None:
             # we are starting. so look through the entire base-waypoints list
-            min_wp = self.minDistanceWayPoint(0, len(self._base_waypoints), self._current_pose)
+            min_wp = self.minDistanceWayPoint(0, num_base_waypoints)
         else:
             # only look through LOOKAHEAD_WPS from the past location
             # assuming that the car won't run through all the way points
-            # between 2 successive calls to this function
-            min_wp = self.minDistanceWayPoint(self._last_waypoint, self._last_waypoint + LOOKAHEAD_WPS, self._current_pose)
+            # will need to increase the frequency if it does
+            min_wp = self.minDistanceWayPoint(self._last_waypoint, self._last_waypoint + LOOKAHEAD_WPS)
         # rospy.loginfo('Waypoint: {0}'.format(min_wp))
         # rospy.loginfo('Waypoint: {0}'.format(self._base_waypoints[min_wp]))
         # rospy.loginfo('Current position: {0}'.format(msg.pose))
+        # choose the next way-point if the minimum way point is behind the car
+        min_wp = min_wp if (self.is_waypoint_ahead(min_wp)) else (min_wp + 1)%num_base_waypoints
         for i in range(min_wp, min_wp + LOOKAHEAD_WPS):
-            future_waypoints.append(self._base_waypoints[i % len(self._base_waypoints)])
+            future_waypoints.append(self._base_waypoints[i % num_base_waypoints])
         self._last_waypoint = min_wp
         pubMsg = Lane()
         pubMsg.header.frame_id = '/world'
@@ -67,7 +78,11 @@ class WaypointUpdater(object):
         pubMsg.waypoints = future_waypoints
         self.final_waypoints_pub.publish(pubMsg)
 
-    def minDistanceWayPoint(self, start, end, pose):
+    def pose_cb(self, msg):
+        self._current_pose = msg
+
+    def minDistanceWayPoint(self, start, end):
+        pose = self._current_pose
         min_wp = start
         min_dist = self.distancePose(pose, self._base_waypoints[start].pose)
         base_len = len(self._base_waypoints)
@@ -77,6 +92,23 @@ class WaypointUpdater(object):
                 min_dist = dist
                 min_wp = i % base_len
         return min_wp
+
+    def is_waypoint_ahead(self, wp):
+        pose = self._current_pose.pose
+        x = pose.position.x
+        y = pose.position.y
+        _, _, yaw = tf.transformations.euler_from_quaternion([
+            pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])
+
+        # we now translate the way point and car pose into car co-ordinates and check if
+        # the way point is infront of us
+        wp_pose = self._base_waypoints[wp].pose.pose
+        wp_x = wp_pose.position.x
+        wp_y = wp_pose.position.y
+
+        x_car = (x - wp_x)*math.cos(0 - yaw) - (y - wp_y)*math.sin(0 - yaw)
+        # rospy.loginfo('car:{0}, wp: {1}, delta_x: {2}'.format((x, y), (wp_x, wp_y), x_car))
+        return (x_car > 0)
 
     def distancePose(self, pose1, pose2):
         x = pose1.pose.position.x - pose2.pose.position.x
