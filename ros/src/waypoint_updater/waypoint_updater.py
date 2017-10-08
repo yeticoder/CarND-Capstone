@@ -106,7 +106,7 @@ class WaypointUpdater(object):
         wp_x = wp_pose.position.x
         wp_y = wp_pose.position.y
 
-        x_car = (x - wp_x)*math.cos(0 - yaw) - (y - wp_y)*math.sin(0 - yaw)
+        x_car = (wp_x - x)*math.cos(0 - yaw) - (wp_y - y)*math.sin(0 - yaw)
         # rospy.loginfo('car:{0}, wp: {1}, delta_x: {2}'.format((x, y), (wp_x, wp_y), x_car))
         return (x_car > 0)
 
