@@ -1,5 +1,6 @@
 from pid import PID
 from yaw_controller import YawController
+from lowpass import LowPassFilter
 
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
@@ -22,6 +23,8 @@ class Controller(object):
             mn=self.info.decel_limit,
             mx=self.info.accel_limit
         )
+        self.steering_filter = LowPassFilter(tau=4, ts=1)
+        self.acceleration_filter = LowPassFilter(tau=4, ts=1)
 
     def reset(self):
         self.pid.reset()
@@ -39,8 +42,10 @@ class Controller(object):
             angular_velocity,
             current_velocity
         )
+        next_steering = self.steering_filter.filt(next_steering)
 
         next_acceleration = self.pid.step(velocity_error, delta_time)
+        next_acceleration = self.acceleration_filter.filt(next_acceleration)
 
         if next_acceleration > 0.0:
             throttle = next_acceleration
