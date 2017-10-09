@@ -43,6 +43,7 @@ class CarInfo(object):
         self.steer_ratio = None
         self.max_lat_accel = None
         self.max_steer_angle = None
+        self.min_speed = 0.1
 
 class DBWNode(object):
     def __init__(self):
@@ -72,6 +73,7 @@ class DBWNode(object):
         self.twist_cmd = None
         self.dbw_enabled = True
         self.previous_timestamp = rospy.Time.now().to_sec()
+        self.reset = True
 
         # Create `TwistController` object
         # self.controller = TwistController(<Arguments you wish to provide>)
@@ -115,13 +117,19 @@ class DBWNode(object):
             #                                                     <any other argument you need>)
             # if <dbw is enabled>:
             #   self.publish(throttle, brake, steer)
-            if dbw.enabled and self.current_velocity is not None and self.twist_cmd is not None:
+            if self.dbw_enabled and self.current_velocity is not None and self.twist_cmd is not None:
+                if self.reset:
+                    self.controller.reset()
+                    self.reset = False
+
                 throttle, brake, steer = self.controller.control(
                     twist_cmd = self.twist_cmd,
                     current_velocity = self.current_velocity,
                     delta_time = delta_time
                 )
                 self.publish(throttle, brake, steer)
+            else:
+                self.reset = True
             rate.sleep()
 
     def publish(self, throttle, brake, steer):
