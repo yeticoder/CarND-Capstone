@@ -52,6 +52,7 @@ class Controller(object):
             brake = 0.0
         else:
             throttle = 0.0
+            deceleration = abs(acceleration)
             if deceleration < self.info.brake_deadband:
                 deceleration = 0.0
             # Breaking in kg * m^2/s (Angular Momentum)
