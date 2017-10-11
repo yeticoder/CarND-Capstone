@@ -51,8 +51,10 @@ class Controller(object):
             throttle = next_acceleration
             brake = 0.0
         else:
-            # @TODO: Write propper breaking mechanism
             throttle = 0.0
-            brake = 0.0
+            if deceleration < self.info.brake_deadband:
+                deceleration = 0.0
+            # Breaking in kg * m^2/s (Angular Momentum)
+            brake = deceleration * (self.info.vehicle_mass + self.info.fuel_capacity * GAS_DENSITY) * self.info.wheel_radius
 
         return throttle, brake, next_steering
