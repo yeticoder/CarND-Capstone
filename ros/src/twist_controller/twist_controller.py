@@ -30,7 +30,6 @@ class Controller(object):
         self.pid.reset()
 
     def control(self, twist_cmd, current_velocity, delta_time):
-        # TODO: Change the arg, kwarg list to suit your needs
         # Return throttle, brake, steer
         linear_velocity = abs(twist_cmd.twist.linear.x)
         angular_velocity = twist_cmd.twist.angular.z
@@ -51,8 +50,11 @@ class Controller(object):
             throttle = next_acceleration
             brake = 0.0
         else:
-            # @TODO: Write propper breaking mechanism
             throttle = 0.0
             brake = 0.0
+            deceleration = abs(next_acceleration)
+            if deceleration < self.info.brake_deadband:
+                # Breaking in kg * m^2/s (Angular Momentum)
+                brake = deceleration * (self.info.vehicle_mass + self.info.fuel_capacity * GAS_DENSITY) * self.info.wheel_radius
 
         return throttle, brake, next_steering
