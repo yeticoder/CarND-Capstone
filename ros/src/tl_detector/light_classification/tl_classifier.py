@@ -10,11 +10,11 @@ from utils import visualization_utils as vis_util
 
 class TLClassifier(object):
     def __init__(self):
-        
         self.light_color = TrafficLight.UNKNOWN 
-        model_folder = "trained_model/"
-        path_to_ckpt =  model_folder +"sim_model.pb"
-        path_to_label = model_folder +"light_label.pbtxt"
+        curr_dir = os.path.dirname(os.path.realpath(__file__))
+        model_folder = curr_dir +"/trained_model"
+        path_to_ckpt =  model_folder +"/sim_model.pb"
+        path_to_label = model_folder +"/light_label.pbtxt"
         num_classes = 4
 
         #loading label map
@@ -24,7 +24,7 @@ class TLClassifier(object):
         
         #load frozen Tensorflow model into memory
         self.detection_graph = tf.Graph()
-        with detection_graph.as_default():
+        with self.detection_graph.as_default():
             od_graph_def = tf.GraphDef()
 
             with tf.gfile.GFile(path_to_ckpt, 'rb') as fid:
@@ -32,7 +32,7 @@ class TLClassifier(object):
                 od_graph_def.ParseFromString(serialized_graph)
                 tf.import_graph_def(od_graph_def, name='')
 
-            self.sess =  tf.Session(graph=detection_graph) 
+            self.sess =  tf.Session(graph=self.detection_graph) 
         
         # Definite input and output Tensors for detection_graph
         self.image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
@@ -60,14 +60,13 @@ class TLClassifier(object):
         
         self.light_color = TrafficLight.UNKNOWN
 
-
         image_np_expanded = np.expand_dims(image, axis=0)
         
         # Actual detection.
         with self.detection_graph.as_default():
-            (boxes, scores, classes, num) = self.sess.run([self.detection_boxes, self.detection_scores, self.detection_classes, self.num_detections],feed_dict={image_tensor: image_np_expanded})
+            (boxes, scores, classes, num) = self.sess.run([self.detection_boxes, self.detection_scores, self.detection_classes, self.num_detections],feed_dict={self.image_tensor: image_np_expanded})
         
-        boxes = np.squeeze(boxes),
+        boxes = np.squeeze(boxes)
         classes = np.squeeze(classes).astype(np.int32)
         scores = np.squeeze(scores)
 
@@ -83,8 +82,7 @@ class TLClassifier(object):
                 elif color == "Green":
                     self.light_color = TrafficLight.GREEN
                 else:
-                    self.light_color = TrafficLight.UNKNOWN
-            else:
-                self.light_color = TrafficLight.UNKNOWN
+                    self.light_color = TrafficLight.UNKUOWN
+
 
         return self.light_color
