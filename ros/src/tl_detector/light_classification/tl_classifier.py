@@ -12,9 +12,11 @@ class TLClassifier(object):
     def __init__(self):
         self.light_color = TrafficLight.UNKNOWN 
         curr_dir = os.path.dirname(os.path.realpath(__file__))
-        model_folder = curr_dir +"/trained_model"
-        path_to_ckpt =  model_folder +"/sim_model.pb"
-        path_to_label = model_folder +"/light_label.pbtxt"
+        model_folder = curr_dir + "/trained_model"
+        path_to_ckpt = model_folder + "/sim_model.pb"
+
+        # path_to_ckpt = model_folder + "/real_model.pb"      
+        path_to_label = model_folder + "/light_label.pbtxt"
         num_classes = 4
 
         #loading label map
