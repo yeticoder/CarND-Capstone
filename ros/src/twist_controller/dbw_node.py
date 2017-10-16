@@ -103,7 +103,7 @@ class DBWNode(object):
         while not rospy.is_shutdown():
 
             # Get time delta
-            current_timestamp = rospy.Time.now().to_sec()
+            current_timestamp = rospy.get_time()
             delta_time = current_timestamp - self.previous_timestamp
             self.previous_timestamp = current_timestamp
 
@@ -127,6 +127,7 @@ class DBWNode(object):
                     current_velocity = self.current_velocity,
                     delta_time = delta_time
                 )
+                rospy.loginfo("THROTTLE: %s, BRAKE: %s, STEER: %s", throttle, brake, steer)
                 self.publish(throttle, brake, steer)
             else:
                 self.reset = True
