@@ -54,7 +54,8 @@ class WaypointUpdater(object):
             self._traffic_light_wp = msg.data
             dist = self.distance(self._base_waypoints, self._last_waypoint, self._traffic_light_wp)
             self._distance_to_tl = dist
-
+        else:
+            self._distance_to_tl = None
 
     def loop(self):
         rate = rospy.Rate(5) # 5 Hz
@@ -84,8 +85,9 @@ class WaypointUpdater(object):
             if self._distance_to_tl is not None and self._traffic_light_wp is not None and self._distance_to_tl < self._min_tl_distance:
                 # linearly reduce velocity till the traffic light
                 # distance and hence velocity would be zero beyond the traffic light
-                dist = self.distance(self._base_waypoints, i%num_base_waypoints, self._traffic_light_wp)
-                wp.twist.twist.linear.x = dist * self._max_vel / self._min_tl_distance
+                # dist = self.distance(self._base_waypoints, i%num_base_waypoints, self._traffic_light_wp)
+                dist = max(0, self._distance_to_tl / self._min_tl_distance)
+                wp.twist.twist.linear.x = dist * self._max_vel
                 # rospy.loginfo('{0}: TL: {1}, distance to TL: {2}, velocity = {3}'.format(i, self._traffic_light_wp, dist, wp.twist.twist.linear.x))
             else:
                 wp.twist.twist.linear.x = self._max_vel

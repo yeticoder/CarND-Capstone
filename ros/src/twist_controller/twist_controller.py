@@ -17,14 +17,14 @@ class Controller(object):
             self.info.max_steer_angle
         )
         self.pid = PID(
-            kp=0.121617,
-            ki=0,
-            kd=3.5,
+            kp=0.1,
+            ki=0.1,
+            kd=0.1,
             mn=self.info.decel_limit,
             mx=self.info.accel_limit
         )
-        self.steering_filter = LowPassFilter(tau=4, ts=1)
-        self.acceleration_filter = LowPassFilter(tau=4, ts=1)
+        self.steering_filter = LowPassFilter(tau=3, ts=1)
+        self.acceleration_filter = LowPassFilter(tau=3, ts=1)
 
     def reset(self):
         self.pid.reset()
@@ -33,7 +33,7 @@ class Controller(object):
         # Return throttle, brake, steer
         linear_velocity = abs(twist_cmd.twist.linear.x)
         angular_velocity = twist_cmd.twist.angular.z
-        current_velocity = abs(current_velocity.twist.linear.x)
+        current_velocity = current_velocity.twist.linear.x
         velocity_error = linear_velocity - current_velocity
 
         next_steering = self.yaw_controller.get_steering(
@@ -43,18 +43,20 @@ class Controller(object):
         )
         next_steering = self.steering_filter.filt(next_steering)
 
-        next_acceleration = self.pid.step(velocity_error, delta_time)
+        #next_acceleration = self.pid.step(velocity_error, delta_time)
+        next_acceleration = velocity_error / delta_time
         next_acceleration = self.acceleration_filter.filt(next_acceleration)
 
-        if next_acceleration > 0.0:
+        if abs(next_acceleration) < self.info.brake_deadband:
+            return 0.0, 0.0, next_steering
+
+        torque = next_acceleration * (self.info.vehicle_mass + self.info.fuel_capacity * GAS_DENSITY) * self.info.wheel_radius
+
+        if torque > 0.0:
             throttle = next_acceleration
             brake = 0.0
         else:
             throttle = 0.0
-            brake = 0.0
-            deceleration = abs(next_acceleration)
-            if deceleration < self.info.brake_deadband:
-                # Breaking in kg * m^2/s (Angular Momentum)
-                brake = deceleration * (self.info.vehicle_mass + self.info.fuel_capacity * GAS_DENSITY) * self.info.wheel_radius
+            brake = abs(torque)
 
         return throttle, brake, next_steering
