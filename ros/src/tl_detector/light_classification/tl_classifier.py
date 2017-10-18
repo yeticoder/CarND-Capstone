@@ -88,3 +88,24 @@ class TLClassifier(object):
 
 
         return self.light_color
+
+
+    def _join_file_chunks(self, chunk_directory, output_file):
+        if os.path.exists(chunk_directory):
+            if os.path.exists(output_file):
+                os.remove(output_file)
+
+            chunks = os.listdir(chunk_directory)
+            chunks.sort()
+
+            with open(output_file, 'wb') as fout:
+                for f_chunk in chunks:
+                    chunk_path = os.path.join(chunk_directory, f_chunk)
+                    with open(chunk_path, 'rb') as fin:
+                        while True:
+                            bytes = fin.read(1024*16)
+                            if not bytes:
+                                break
+                            fout.write(bytes)
+
+

@@ -1,0 +1,10 @@
+Tested on udacity_succesful_light_detection bag images
+
+real_resnet_model.pb 
+ - precision: 0.984
+ - recognition time: 80-90 ms
+ 
+real_model.pb 
+ - precision: 0.714
+ - recognition time: 10-15 ms
+
