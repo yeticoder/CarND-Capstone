@@ -19,8 +19,10 @@ class TLClassifier(object):
         model_folder = curr_dir + "/trained_model"
 
         if simulator:
+            rospy.loginfo("Loading simulator (inception) model")
             path_to_ckpt = model_folder + "/sim_model.pb"
         else:
+            rospy.loginfo("Loading simulator (resnet) real")
             path_to_ckpt = model_folder + "/real_resnet_model.pb"
             path_to_chunks = model_folder + "/real_resnet_model_chunks"
 
@@ -86,9 +88,10 @@ class TLClassifier(object):
         scores = np.squeeze(scores)
 
         min_thereshold = 0.6
-        for i in xrange(0,len(classes)):
+        for i in range(len(classes)):
             if scores[i] > min_thereshold:
                 color = self.category_index[classes[i]]["name"]
+                rospy.loginfo("color: %s %s", color, scores[i])
 
                 if color == "Red":
                     self.light_color = TrafficLight.RED
@@ -97,9 +100,10 @@ class TLClassifier(object):
                 elif color == "Green":
                     self.light_color = TrafficLight.GREEN
                 else:
-                    self.light_color = TrafficLight.UNKUOWN
+                    self.light_color = TrafficLight.UNKNOWN
 
-                # rospy.loginfo("color: " + color)
+                break
+
 
         return self.light_color
 
