@@ -1,3 +1,4 @@
+import rospy
 from styx_msgs.msg import TrafficLight
 import numpy as np
 import os
@@ -9,13 +10,24 @@ from utils import label_map_util
 from utils import visualization_utils as vis_util
 
 class TLClassifier(object):
-    def __init__(self):
-        self.light_color = TrafficLight.UNKNOWN 
+    def __init__(self, simulator=True):
+        # rospy.init_node('tl_classifier')
+
+        self.simulator = simulator
+        self.light_color = TrafficLight.UNKNOWN
         curr_dir = os.path.dirname(os.path.realpath(__file__))
         model_folder = curr_dir + "/trained_model"
-        path_to_ckpt = model_folder + "/sim_model.pb"
 
-        # path_to_ckpt = model_folder + "/real_model.pb"      
+        if simulator:
+            path_to_ckpt = model_folder + "/sim_model.pb"
+        else:
+            path_to_ckpt = model_folder + "/real_resnet_model.pb"
+            path_to_chunks = model_folder + "/real_resnet_model_chunks"
+
+            if not os.path.isfile(path_to_ckpt):
+                self._join_file_chunks(path_to_chunks, path_to_ckpt)
+
+        # path_to_ckpt = model_folder + "/real_model.pb"
         path_to_label = model_folder + "/light_label.pbtxt"
         num_classes = 4
 
@@ -63,10 +75,11 @@ class TLClassifier(object):
         self.light_color = TrafficLight.UNKNOWN
 
         image_np_expanded = np.expand_dims(image, axis=0)
-        
+
         # Actual detection.
         with self.detection_graph.as_default():
-            (boxes, scores, classes, num) = self.sess.run([self.detection_boxes, self.detection_scores, self.detection_classes, self.num_detections],feed_dict={self.image_tensor: image_np_expanded})
+            (boxes, scores, classes, num) = self.sess.run([self.detection_boxes, self.detection_scores, self.detection_classes, self.num_detections],
+                                                          feed_dict={self.image_tensor: image_np_expanded})
         
         boxes = np.squeeze(boxes)
         classes = np.squeeze(classes).astype(np.int32)
@@ -86,6 +99,7 @@ class TLClassifier(object):
                 else:
                     self.light_color = TrafficLight.UNKUOWN
 
+                # rospy.loginfo("color: " + color)
 
         return self.light_color
 
