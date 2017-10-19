@@ -1,3 +1,4 @@
+import rospy
 from styx_msgs.msg import TrafficLight
 import numpy as np
 import os
@@ -9,13 +10,26 @@ from utils import label_map_util
 from utils import visualization_utils as vis_util
 
 class TLClassifier(object):
-    def __init__(self):
-        self.light_color = TrafficLight.UNKNOWN 
+    def __init__(self, simulator=True):
+        # rospy.init_node('tl_classifier')
+
+        self.simulator = simulator
+        self.light_color = TrafficLight.UNKNOWN
         curr_dir = os.path.dirname(os.path.realpath(__file__))
         model_folder = curr_dir + "/trained_model"
-        path_to_ckpt = model_folder + "/sim_model.pb"
 
-        # path_to_ckpt = model_folder + "/real_model.pb"      
+        if simulator:
+            rospy.loginfo("Loading simulator (inception) model")
+            path_to_ckpt = model_folder + "/sim_model.pb"
+        else:
+            rospy.loginfo("Loading simulator (resnet) real")
+            path_to_ckpt = model_folder + "/real_resnet_model.pb"
+            path_to_chunks = model_folder + "/real_resnet_model_chunks"
+
+            if not os.path.isfile(path_to_ckpt):
+                self._join_file_chunks(path_to_chunks, path_to_ckpt)
+
+        # path_to_ckpt = model_folder + "/real_model.pb"
         path_to_label = model_folder + "/light_label.pbtxt"
         num_classes = 4
 
@@ -63,19 +77,21 @@ class TLClassifier(object):
         self.light_color = TrafficLight.UNKNOWN
 
         image_np_expanded = np.expand_dims(image, axis=0)
-        
+
         # Actual detection.
         with self.detection_graph.as_default():
-            (boxes, scores, classes, num) = self.sess.run([self.detection_boxes, self.detection_scores, self.detection_classes, self.num_detections],feed_dict={self.image_tensor: image_np_expanded})
+            (boxes, scores, classes, num) = self.sess.run([self.detection_boxes, self.detection_scores, self.detection_classes, self.num_detections],
+                                                          feed_dict={self.image_tensor: image_np_expanded})
         
         boxes = np.squeeze(boxes)
         classes = np.squeeze(classes).astype(np.int32)
         scores = np.squeeze(scores)
 
         min_thereshold = 0.6
-        for i in xrange(0,len(classes)):
+        for i in range(len(classes)):
             if scores[i] > min_thereshold:
                 color = self.category_index[classes[i]]["name"]
+                rospy.loginfo("color: %s %s", color, scores[i])
 
                 if color == "Red":
                     self.light_color = TrafficLight.RED
@@ -84,7 +100,9 @@ class TLClassifier(object):
                 elif color == "Green":
                     self.light_color = TrafficLight.GREEN
                 else:
-                    self.light_color = TrafficLight.UNKUOWN
+                    self.light_color = TrafficLight.UNKNOWN
+
+                break
 
 
         return self.light_color
