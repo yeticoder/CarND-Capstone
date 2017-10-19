@@ -18,7 +18,7 @@ RUN apt-get upgrade -y
 # install python packages
 RUN apt-get install -y python-pip
 COPY requirements.txt ./requirements.txt
-RUN pip install -r requirements.txt
+
 
 # install required ros dependencies
 RUN apt-get install -y ros-$ROS_DISTRO-cv-bridge
@@ -27,6 +27,8 @@ RUN apt-get install -y ros-$ROS_DISTRO-image-proc
 
 # socket io
 RUN apt-get install -y netbase
+
+RUN pip install -r requirements.txt
 
 RUN mkdir /capstone
 VOLUME ["/capstone"]
