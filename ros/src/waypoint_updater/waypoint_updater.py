@@ -2,7 +2,8 @@
 
 import rospy
 from geometry_msgs.msg import PoseStamped
-from styx_msgs.msg import Lane, Waypoint
+from std_msgs.msg import Int32
+from styx_msgs.msg import Lane, Waypoint, TrafficLightArray
 
 import math
 import tf
@@ -32,6 +33,7 @@ class WaypointUpdater(object):
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_light_cb)
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
@@ -40,7 +42,20 @@ class WaypointUpdater(object):
         self._base_waypoints = None
         self._current_pose = None
         self._last_waypoint = None
+        self._max_vel = rospy.get_param("/waypoint_loader/velocity", 10)
+        rospy.loginfo("Velocity: {0}".format(self._max_vel))
+        self._min_tl_distance = 100
+        self._traffic_light_wp = None
+        self._distance_to_tl = None
         self.loop()
+
+    def traffic_light_cb(self, msg):
+        if self._last_waypoint is not None and msg.data > 0:
+            self._traffic_light_wp = msg.data
+            dist = self.distance(self._base_waypoints, self._last_waypoint, self._traffic_light_wp)
+            self._distance_to_tl = dist
+        else:
+            self._distance_to_tl = None
 
     def loop(self):
         rate = rospy.Rate(5) # 5 Hz
@@ -58,42 +73,49 @@ class WaypointUpdater(object):
         num_base_waypoints = len(self._base_waypoints)
         if self._last_waypoint is None:
             # we are starting. so look through the entire base-waypoints list
-            min_wp = self.minDistanceWayPoint(0, num_base_waypoints)
+            min_wp = self.minDistanceWayPoint(0, num_base_waypoints, self._base_waypoints)
         else:
             # only look through LOOKAHEAD_WPS from the past location
             # assuming that the car won't run through all the way points
             # will need to increase the frequency if it does
-            min_wp = self.minDistanceWayPoint(self._last_waypoint, self._last_waypoint + LOOKAHEAD_WPS)
-        # rospy.loginfo('Waypoint: {0}'.format(min_wp))
-        # rospy.loginfo('Waypoint: {0}'.format(self._base_waypoints[min_wp]))
-        # rospy.loginfo('Current position: {0}'.format(msg.pose))
-        # choose the next way-point if the minimum way point is behind the car
-        min_wp = min_wp if (self.is_waypoint_ahead(min_wp)) else (min_wp + 1)%num_base_waypoints
+            min_wp = self.minDistanceWayPoint(self._last_waypoint, self._last_waypoint + LOOKAHEAD_WPS, self._base_waypoints)
+
         for i in range(min_wp, min_wp + LOOKAHEAD_WPS):
-            future_waypoints.append(self._base_waypoints[i % num_base_waypoints])
+            wp = self._base_waypoints[i % num_base_waypoints]
+            if self._distance_to_tl is not None and self._traffic_light_wp is not None and self._distance_to_tl < self._min_tl_distance:
+                # linearly reduce velocity till the traffic light
+                # distance and hence velocity would be zero beyond the traffic light
+                # dist = self.distance(self._base_waypoints, i%num_base_waypoints, self._traffic_light_wp)
+                dist = max(0, self._distance_to_tl / self._min_tl_distance)
+                wp.twist.twist.linear.x = dist * self._max_vel
+                # rospy.loginfo('{0}: TL: {1}, distance to TL: {2}, velocity = {3}'.format(i, self._traffic_light_wp, dist, wp.twist.twist.linear.x))
+            else:
+                wp.twist.twist.linear.x = self._max_vel
+            future_waypoints.append(wp)
         self._last_waypoint = min_wp
         pubMsg = Lane()
         pubMsg.header.frame_id = '/world'
         pubMsg.header.stamp = rospy.Time(0)
         pubMsg.waypoints = future_waypoints
         self.final_waypoints_pub.publish(pubMsg)
+        # rospy.loginfo("Waypoints published.")
 
     def pose_cb(self, msg):
         self._current_pose = msg
 
-    def minDistanceWayPoint(self, start, end):
-        pose = self._current_pose
+    def minDistanceWayPoint(self, start, end, waypoints, ref_pose = None):
+        pose = self._current_pose if ref_pose is None else ref_pose
         min_wp = start
-        min_dist = self.distancePose(pose, self._base_waypoints[start].pose)
-        base_len = len(self._base_waypoints)
+        min_dist = self.distancePose(pose, waypoints[start].pose)
+        base_len = len(waypoints)
         for i in range(start + 1, end):
-            dist = self.distancePose(pose, self._base_waypoints[i % base_len].pose)
+            dist = self.distancePose(pose, waypoints[i % base_len].pose)
             if(dist < min_dist):
                 min_dist = dist
                 min_wp = i % base_len
-        return min_wp
+        return min_wp if self.is_waypoint_ahead(min_wp, waypoints) else (min_wp + 1)%len(waypoints)
 
-    def is_waypoint_ahead(self, wp):
+    def is_waypoint_ahead(self, wp, waypoints):
         pose = self._current_pose.pose
         x = pose.position.x
         y = pose.position.y
@@ -102,7 +124,7 @@ class WaypointUpdater(object):
 
         # we now translate the way point and car pose into car co-ordinates and check if
         # the way point is infront of us
-        wp_pose = self._base_waypoints[wp].pose.pose
+        wp_pose = waypoints[wp].pose.pose
         wp_x = wp_pose.position.x
         wp_y = wp_pose.position.y
 
