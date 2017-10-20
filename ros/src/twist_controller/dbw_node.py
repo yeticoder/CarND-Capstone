@@ -127,7 +127,9 @@ class DBWNode(object):
                     current_velocity = self.current_velocity,
                     delta_time = delta_time
                 )
-                rospy.loginfo("CURRENT: %s, TARGET: %s", self.current_velocity.twist.linear.x, self.twist_cmd.twist.linear.x)
+                rospy.loginfo("CURRENT: %s, TARGET: %s, BRAKE: %s", self.current_velocity.twist.linear.x, self.twist_cmd.twist.linear.x, brake)
+                # if brake > 0.0:
+                #     rospy.loginfo("THROTTLE: %s, BRAKE: %s", throttle, brake)
                 self.publish(throttle, brake, steer)
             else:
                 self.reset = True

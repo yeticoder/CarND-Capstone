@@ -49,8 +49,13 @@ class Controller(object):
 
         if velocity_error < 0.0:
             brake = abs(torque)
-            throttle = 0.0
+
             if abs(throttle) < self.info.brake_deadband:
                 return 0.0, 0.0, next_steering
+
+            throttle = 0.0
+
+        if linear_velocity < 0.1:
+            return 0.0, 12.0, next_steering
 
         return throttle, brake, next_steering
