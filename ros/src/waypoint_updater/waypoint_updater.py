@@ -42,7 +42,7 @@ class WaypointUpdater(object):
         self._base_waypoints = None
         self._current_pose = None
         self._last_waypoint = None
-        self._max_vel = rospy.get_param("/waypoint_loader/velocity", 10)
+        self._max_vel = rospy.get_param("/waypoint_loader/velocity", 10) / 3.6
         rospy.loginfo("Velocity: {0}".format(self._max_vel))
         self._min_tl_distance = 100
         self._traffic_light_wp = None
