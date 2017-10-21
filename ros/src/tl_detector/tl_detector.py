@@ -36,12 +36,13 @@ class TLDetector(object):
         self.end_detection = None
 
         config_string = rospy.get_param("/traffic_light_config")
+        
         self.config = yaml.load(config_string)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
         self.bridge = CvBridge()
-        self.light_classifier = TLClassifier(True)
+        self.light_classifier = TLClassifier(simulator=False)
         self.listener = tf.TransformListener()
 
         self.state = TrafficLight.UNKNOWN
@@ -216,6 +217,7 @@ class TLDetector(object):
 
                 if traffic_light_detection_was_implemented:
                     # when get_light_state() will be properly implemented:
+                    rospy.loginfo("TL: closest_light_wp=%d,  state=%s,  d_min=%d", nearest_light_wp, self.light_str[self.get_light_state()], d_min)
                     return nearest_light_wp, self.get_light_state()
                 else:
                     # use dummy/substitute, peeking true light state from the topic: /vehicle/traffic_lights

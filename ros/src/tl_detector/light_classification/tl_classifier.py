@@ -22,7 +22,7 @@ class TLClassifier(object):
             rospy.loginfo("Loading simulator (inception) model")
             path_to_ckpt = model_folder + "/sim_model.pb"
         else:
-            rospy.loginfo("Loading simulator (resnet) real")
+            rospy.loginfo("Loading real (resnet) model")
             path_to_ckpt = model_folder + "/real_resnet_model.pb"
             path_to_chunks = model_folder + "/real_resnet_model_chunks"
 
@@ -103,7 +103,6 @@ class TLClassifier(object):
                     self.light_color = TrafficLight.UNKNOWN
 
                 break
-
 
         return self.light_color
 
