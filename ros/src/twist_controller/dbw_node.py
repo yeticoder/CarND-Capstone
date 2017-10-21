@@ -80,8 +80,8 @@ class DBWNode(object):
         self.controller = Controller(info)
 
         # Subscribe to all the topics you need to
-        rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb, queue_size=5)
-        rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cb, queue_size=5)
+        rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb, queue_size=1)
+        rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cb, queue_size=1)
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb, queue_size=1)
 
         self.loop()
@@ -127,7 +127,9 @@ class DBWNode(object):
                     current_velocity = self.current_velocity,
                     delta_time = delta_time
                 )
-                rospy.loginfo("THROTTLE: %s, BRAKE: %s, STEER: %s", throttle, brake, steer)
+                rospy.loginfo("CURRENT: %s, TARGET: %s, BRAKE: %s", self.current_velocity.twist.linear.x, self.twist_cmd.twist.linear.x, brake)
+                # if brake > 0.0:
+                #     rospy.loginfo("THROTTLE: %s, BRAKE: %s", throttle, brake)
                 self.publish(throttle, brake, steer)
             else:
                 self.reset = True
